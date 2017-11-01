@@ -33,10 +33,9 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Please register", Toast.LENGTH_SHORT).show();
             return;
         }
-        signaling.setCaller(true);
+        signaling.setInitiator(true);
+        signaling.setCalleeName(callee.getText().toString());
         Intent intent = new Intent(MainActivity.this, CallActivity.class);
-        intent.putExtra("callee", callee.getText().toString());
-        intent.putExtra("isCaller", true);
         startActivity(intent);
     }
 
@@ -47,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
 
         signaling = Signaling.getInstance();
         signaling.setContext(MainActivity.this);
-        signaling.clearListener();
         ButterKnife.bind(this);
     }
 }
