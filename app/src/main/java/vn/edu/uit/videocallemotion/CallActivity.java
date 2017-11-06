@@ -1,45 +1,21 @@
 package vn.edu.uit.videocallemotion;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.os.Build;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
-
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.webrtc.AudioSource;
-import org.webrtc.AudioTrack;
-import org.webrtc.Camera1Enumerator;
-import org.webrtc.Camera2Enumerator;
-import org.webrtc.CameraEnumerator;
-import org.webrtc.DataChannel;
-import org.webrtc.IceCandidate;
-import org.webrtc.MediaConstraints;
 import org.webrtc.MediaStream;
-import org.webrtc.PeerConnection;
-import org.webrtc.PeerConnectionFactory;
-import org.webrtc.RtpReceiver;
-import org.webrtc.SdpObserver;
-import org.webrtc.SessionDescription;
 import org.webrtc.SurfaceViewRenderer;
-import org.webrtc.VideoCapturer;
 import org.webrtc.EglBase;
 import org.webrtc.VideoRenderer;
-import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
-import java.util.LinkedList;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
-import pub.devrel.easypermissions.AfterPermissionGranted;
-import pub.devrel.easypermissions.EasyPermissions;
 
-public class CallActivity extends AppCompatActivity {
+public class CallActivity extends AppCompatActivity implements StreamListener {
     @BindView(R.id.localView)
     SurfaceViewRenderer localView;
 
@@ -58,16 +34,16 @@ public class CallActivity extends AppCompatActivity {
         localView.init(rootEglBase.getEglBaseContext(), null);
         remoteView.init(rootEglBase.getEglBaseContext(), null);
 
+        Intent intent = getIntent();
+        String calleeName = intent.getStringExtra("callee");
+
         signaling = Signaling.getInstance();
         signaling.clearContext();
-        signaling.init(this, localView, remoteView);
-        signaling.initVideo(createVideoCapturer());
-        signaling.addStream();
-        if (this.signaling.isInitiator()) {
+        signaling.initPeer(this, calleeName);
+        if (signaling.isInitiator()) {
             signaling.call();
         } else {
             try {
-                Intent intent = getIntent();
                 JSONObject payload = new JSONObject(intent.getStringExtra("payload"));
                 signaling.onReceiveOffer(payload);
             } catch (JSONException e) {
@@ -76,40 +52,23 @@ public class CallActivity extends AppCompatActivity {
         }
     }
 
-    private VideoCapturer createVideoCapturer() {
-        VideoCapturer videoCapturer;
-        if (Camera2Enumerator.isSupported(this)) {
-            videoCapturer = createCameraCapturer(new Camera2Enumerator(this));
-        } else {
-            videoCapturer = createCameraCapturer(new Camera1Enumerator(false));
-        }
-        return videoCapturer;
+    @Override
+    public void onLocalStream(MediaStream stream) {
+        VideoTrack videoTrack = stream.videoTracks.getFirst();
+        localView.setMirror(true);
+        videoTrack.addRenderer(new VideoRenderer(localView));
     }
 
-    private VideoCapturer createCameraCapturer(CameraEnumerator enumerator) {
-        final String[] deviceNames = enumerator.getDeviceNames();
+    @Override
+    public void onRemoteStream(MediaStream stream) {
+        VideoTrack videoTrack = stream.videoTracks.getFirst();
+        remoteView.setMirror(true);
+        videoTrack.addRenderer(new VideoRenderer(remoteView));
+    }
 
-
-        // Trying to find a front facing camera!
-        for (String deviceName : deviceNames) {
-            if (enumerator.isFrontFacing(deviceName)) {
-                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
-                if (videoCapturer != null) {
-                    return videoCapturer;
-                }
-            }
-        }
-
-        // We were not able to find a front cam. Look for other cameras
-        for (String deviceName : deviceNames) {
-            if (!enumerator.isFrontFacing(deviceName)) {
-                VideoCapturer videoCapturer = enumerator.createCapturer(deviceName, null);
-                if (videoCapturer != null) {
-                    return videoCapturer;
-                }
-            }
-        }
-
-        return null;
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        signaling.close();
     }
 }

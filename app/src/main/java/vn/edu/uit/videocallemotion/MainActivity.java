@@ -34,8 +34,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         signaling.setInitiator(true);
-        signaling.setCalleeName(callee.getText().toString());
         Intent intent = new Intent(MainActivity.this, CallActivity.class);
+        intent.putExtra("callee", callee.getText());
         startActivity(intent);
     }
 
