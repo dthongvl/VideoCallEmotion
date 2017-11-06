@@ -49,3 +49,7 @@ google-services.json
 freeline.py
 freeline/
 freeline_project_description.json
+
+
+server/node_modules
+server/package-lock.json
