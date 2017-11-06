@@ -3,6 +3,8 @@ package vn.edu.uit.videocallemotion;
 import android.content.Intent;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.webrtc.MediaStream;
@@ -38,7 +40,6 @@ public class CallActivity extends AppCompatActivity implements StreamListener {
         String calleeName = intent.getStringExtra("callee");
 
         signaling = Signaling.getInstance();
-        signaling.clearContext();
         signaling.initPeer(this, calleeName);
         if (signaling.isInitiator()) {
             signaling.call();
@@ -54,6 +55,7 @@ public class CallActivity extends AppCompatActivity implements StreamListener {
 
     @Override
     public void onLocalStream(MediaStream stream) {
+        Log.d("EMOTION", "onLocalStream");
         VideoTrack videoTrack = stream.videoTracks.getFirst();
         localView.setMirror(true);
         videoTrack.addRenderer(new VideoRenderer(localView));
@@ -61,6 +63,7 @@ public class CallActivity extends AppCompatActivity implements StreamListener {
 
     @Override
     public void onRemoteStream(MediaStream stream) {
+        Log.d("EMOTION", "onRemoteStream");
         VideoTrack videoTrack = stream.videoTracks.getFirst();
         remoteView.setMirror(true);
         videoTrack.addRenderer(new VideoRenderer(remoteView));
@@ -69,6 +72,7 @@ public class CallActivity extends AppCompatActivity implements StreamListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d("EMOTION", "onDestroy");
         signaling.close();
     }
 }

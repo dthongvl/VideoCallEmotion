@@ -1,6 +1,7 @@
 package vn.edu.uit.videocallemotion;
 
 import android.content.Context;
+import android.os.Handler;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -16,6 +17,7 @@ import org.webrtc.PeerConnectionFactory;
 import org.webrtc.RtpReceiver;
 import org.webrtc.SdpObserver;
 import org.webrtc.SessionDescription;
+import org.webrtc.VideoCapturer;
 import org.webrtc.VideoSource;
 import org.webrtc.VideoTrack;
 
@@ -29,8 +31,8 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
     private VideoSource videoSource;
     private AudioSource audioSource;
 
-    public Peer(String calleeName, PeerConnectionFactory factory, LinkedList<PeerConnection.IceServer> iceServers, MediaConstraints mediaConstraints, StreamListener streamListener) {
-        Log.d("EMOTION", "new Peer");
+    public Peer(String calleeName, PeerConnectionFactory factory, final LinkedList<PeerConnection.IceServer> iceServers, MediaConstraints mediaConstraints, StreamListener streamListener) {
+        Log.d("EMOTION", "new Peer to " + calleeName);
         this.calleeName = calleeName;
         this.streamListener = streamListener;
         this.pc = factory.createPeerConnection(iceServers, mediaConstraints, this);
@@ -39,9 +41,11 @@ public class Peer implements SdpObserver, PeerConnection.Observer {
 
     public void initLocalVideo(Context context, PeerConnectionFactory factory) {
         Log.d("EMOTION", "initLocalVideo");
-        videoSource = factory.createVideoSource(Util.createVideoCapturer(context));
+        VideoCapturer videoCapturer = Util.createVideoCapturer(context);
+        videoSource = factory.createVideoSource(videoCapturer);
         VideoTrack localVideoTrack = factory.createVideoTrack("100", videoSource);
         localVideoTrack.setEnabled(true);
+        videoCapturer.startCapture(1000, 1000, 30);
 
         audioSource = factory.createAudioSource(new MediaConstraints());
         AudioTrack localAudioTrack = factory.createAudioTrack("101", audioSource);

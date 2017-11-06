@@ -15,7 +15,7 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements CallListener {
     private Signaling signaling;
 
     @BindView(R.id.caller)
@@ -35,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
         }
         signaling.setInitiator(true);
         Intent intent = new Intent(MainActivity.this, CallActivity.class);
-        intent.putExtra("callee", callee.getText());
+        intent.putExtra("callee", callee.getText().toString());
         startActivity(intent);
     }
 
@@ -45,7 +45,15 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         signaling = Signaling.getInstance();
-        signaling.setContext(MainActivity.this);
+        signaling.setCallListener(this);
         ButterKnife.bind(this);
+    }
+
+    @Override
+    public void onCall(String from, String payload) {
+        Intent intent = new Intent(this, CallActivity.class);
+        intent.putExtra("callee", from);
+        intent.putExtra("payload", payload);
+        startActivity(intent);
     }
 }

@@ -1,8 +1,6 @@
 package vn.edu.uit.videocallemotion;
 
-import android.app.Activity;
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 
 import org.json.JSONException;
@@ -12,8 +10,9 @@ import org.webrtc.MediaConstraints;
 import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.SessionDescription;
+
 import java.net.URISyntaxException;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedList;
 
 import io.socket.client.IO;
@@ -25,11 +24,12 @@ public class Signaling {
     private LinkedList<PeerConnection.IceServer> iceServers = new LinkedList<>();
     private MediaConstraints sdpConstraints;
 
-    private boolean isInitiator = true;
+    private boolean isInitiator = false;
     private String initiatorName = "";
-    private Activity activity;
     private boolean registered = false;
     private Peer peer;
+    private CallListener callListener;
+    private LinkedList<IceCandidate> iceCandidates = new LinkedList<>();
 
     private Socket client;
     private static final Signaling ourInstance = new Signaling();
@@ -40,7 +40,7 @@ public class Signaling {
 
     private Signaling() {
         try {
-            client = IO.socket("http://c4c45946.ngrok.io");
+            client = IO.socket("http://a6e90f83.ngrok.io");
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }
@@ -54,16 +54,16 @@ public class Signaling {
                     JSONObject payload = data.getJSONObject("payload");
                     switch (type) {
                         case "offer":
+                            Log.d("EMOTION", "onReceiveOffer");
                             isInitiator = false;
-                            Intent intent = new Intent(activity, CallActivity.class);
-                            intent.putExtra("callee", from);
-                            intent.putExtra("payload", payload.toString());
-                            activity.startActivity(intent);
+                            callListener.onCall(from, payload.toString());
                             break;
                         case "answer":
+                            Log.d("EMOTION", "onReceiveAnswer");
                             onReceiveAnswer(payload);
                             break;
                         case "candidate":
+                            Log.d("EMOTION", "onReceiveCandidate");
                             onReceiveCandidate(payload);
                             break;
                         default:
@@ -86,15 +86,22 @@ public class Signaling {
         sdpConstraints = new MediaConstraints();
         sdpConstraints.mandatory.add(new MediaConstraints.KeyValuePair("offerToReceiveAudio", "true"));
         sdpConstraints.mandatory.add(new MediaConstraints.KeyValuePair("offerToReceiveVideo", "true"));
-
+        Thread thread = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    if (iceCandidates.size() != 0 && peer != null) {
+                        peer.getPc().addIceCandidate(iceCandidates.removeFirst());
+                        Log.d("EMOTION", "Candidate added to pc");
+                    }
+                }
+            }
+        };
+        thread.start();
     }
 
-    public void setContext(Activity context) {
-        this.activity = context;
-    }
-
-    public void clearContext() {
-        this.activity = null;
+    public void setCallListener(CallListener callListener) {
+        this.callListener = callListener;
     }
 
     public void register(String username) {
@@ -130,7 +137,7 @@ public class Signaling {
                 .builder(context)
                 .createInitializationOptions());
         factory = new PeerConnectionFactory(new PeerConnectionFactory.Options());
-        peer = new Peer(calleeName, factory, iceServers, sdpConstraints, (StreamListener)context);
+        peer = new Peer(calleeName, factory, iceServers, sdpConstraints, (StreamListener) context);
         peer.initLocalVideo(context, factory);
     }
 
@@ -140,7 +147,6 @@ public class Signaling {
     }
 
     public void onReceiveOffer(JSONObject payload) {
-        Log.d("EMOTION", "onReceiveOffer");
         try {
             SessionDescription sdp = new SessionDescription(
                     SessionDescription.Type.fromCanonicalForm(payload.getString("type")),
@@ -148,35 +154,34 @@ public class Signaling {
             );
             peer.getPc().setRemoteDescription(peer, sdp);
             peer.getPc().createAnswer(peer, sdpConstraints);
+            Log.d("EMOTION", "createAnswer");
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
     public void onReceiveAnswer(JSONObject payload) {
-        Log.d("EMOTION", "onReceiveAnswer");
         try {
             SessionDescription sdp = new SessionDescription(
                     SessionDescription.Type.fromCanonicalForm(payload.getString("type")),
                     payload.getString("sdp")
             );
             peer.getPc().setRemoteDescription(peer, sdp);
+            Log.d("EMOTION", "setRemoteDescription");
         } catch (JSONException e) {
             e.printStackTrace();
         }
     }
 
     public void onReceiveCandidate(JSONObject payload) {
-        Log.d("EMOTION", "onReceiveCandidate");
         try {
-            if (peer.getPc().getRemoteDescription() != null) {
-                IceCandidate candidate = new IceCandidate(
-                        payload.getString("id"),
-                        payload.getInt("label"),
-                        payload.getString("candidate")
-                );
-                peer.getPc().addIceCandidate(candidate);
-            }
+            IceCandidate candidate = new IceCandidate(
+                    payload.getString("id"),
+                    payload.getInt("label"),
+                    payload.getString("candidate")
+            );
+            iceCandidates.add(candidate);
+            Log.d("EMOTION", "Candidate added to list");
         } catch (JSONException e) {
             e.printStackTrace();
         }
